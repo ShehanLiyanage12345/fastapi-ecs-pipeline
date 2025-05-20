@@ -1,6 +1,5 @@
 stages:
-  - build
-  - push
+  - build_and_push
   - deploy
 
 variables:
@@ -10,28 +9,20 @@ variables:
   DOCKER_HOST: 'tcp://docker:2375/'
   DOCKER_TLS_CERTDIR: ''
 
-before_script:
-  - apk add --no-cache python3 py3-pip curl docker aws-cli
-  - aws --version
-  - echo "Logging in to AWS ECR"
-  - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO
-
-build_image:
-  stage: build
+build_and_push:
+  stage: build_and_push
   image: docker:latest
   services:
     - docker:dind
+  before_script:
+    - apk add --no-cache python3 py3-pip curl docker aws-cli
+    - aws --version
+    - echo "Logging in to AWS ECR"
+    - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO
   script:
     - echo "Building Docker image"
     - docker build -t fastapi-app .
     - docker tag fastapi-app:latest $ECR_REPO:$IMAGE_TAG
-
-push_image:
-  stage: push
-  image: docker:latest
-  services:
-    - docker:dind
-  script:
     - echo "Pushing Docker image to ECR"
     - docker push $ECR_REPO:$IMAGE_TAG
 
@@ -41,7 +32,6 @@ deploy:
   before_script:
     - apk add --no-cache python3 py3-pip curl aws-cli
   script:
-    - echo "Deploying with Terraform"
     - cd terraform
     - terraform init
     - terraform apply -auto-approve
