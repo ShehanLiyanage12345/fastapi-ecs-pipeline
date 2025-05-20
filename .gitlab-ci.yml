@@ -20,6 +20,7 @@ build_image:
   services:
     - docker:dind
   script:
+    - echo "Building Docker image"
     - docker build -t fastapi-app .
     - docker tag fastapi-app:latest $ECR_REPO:$IMAGE_TAG
 
@@ -29,12 +30,14 @@ push_image:
   services:
     - docker:dind
   script:
+    - echo "Pushing Docker image to ECR"
     - docker push $ECR_REPO:$IMAGE_TAG
 
 deploy:
   stage: deploy
   image: hashicorp/terraform:light
   script:
+    - echo "Deploying with Terraform"
     - cd terraform
     - terraform init
     - terraform apply -auto-approve
