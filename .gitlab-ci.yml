@@ -1,0 +1,51 @@
+stages:
+  - build
+  - push
+  - deploy
+
+variables:
+  AWS_DEFAULT_REGION: 'us-east-1'
+  ECR_REPO: '784434436921.dkr.ecr.us-east-1.amazonaws.com/fastapi-app'
+  IMAGE_TAG: 'latest'
+
+before_script:
+  - echo "Setting up AWS CLI"
+  - apk add --no-cache python3 py3-pip docker curl
+  - pip3 install awscli
+  - aws --version
+  - echo "Logging in to ECR"
+  - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO
+
+build_image:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - echo "Building Docker image"
+    - docker build -t fastapi-app .
+    - docker tag fastapi-app:latest $ECR_REPO:$IMAGE_TAG
+
+push_image:
+  stage: push
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - echo "Pushing Docker image to ECR"
+    - docker push $ECR_REPO:$IMAGE_TAG
+
+deploy:
+  stage: deploy
+  image: hashicorp/terraform:light
+  script:
+    - echo "Deploying with Terraform"
+    - cd terraform
+    - terraform init
+    - terraform apply -auto-approve
+    - echo "Forcing ECS service to use new image"
+    - aws ecs update-service \
+      --cluster fastapi-cluster \
+      --service fastapi-service \
+      --force-new-deployment \
+      --region $AWS_DEFAULT_REGION
