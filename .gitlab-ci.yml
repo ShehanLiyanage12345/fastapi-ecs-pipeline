@@ -28,11 +28,13 @@ build_and_push:
 
 deploy:
   stage: deploy
-  image: hashicorp/terraform:light
+  image: alpine:latest
   before_script:
-    - apk add --no-cache python3 py3-pip curl aws-cli
+    - apk add --no-cache python3 py3-pip curl terraform aws-cli
   script:
+    - echo "Deploying infrastructure using Terraform"
     - cd terraform
     - terraform init
     - terraform apply -auto-approve
+    - echo "Forcing ECS to use updated image"
     - aws ecs update-service --cluster fastapi-cluster --service fastapi-service --force-new-deployment --region $AWS_DEFAULT_REGION
